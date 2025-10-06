@@ -1,22 +1,22 @@
 #!/bin/bash
-# ytplay - Recherche YouTube interactive avec sélection fzf + lecture mpv
+# ytplay - Interactive YouTube search with fzf selection + mpv playback
 # Version: 2.1
 # Usage: ytplay "search query" [max_results]
 
 set -e
 
-QUERY="${1:-documentaire inédit}"
+QUERY="${1:-documentary}"
 MAX_RESULTS="${2:-20}"
 
-# Vérifier les dépendances
+# Check dependencies
 for cmd in yt-dlp fzf jq mpv; do
     if ! command -v $cmd &> /dev/null; then
-        echo "❌ Erreur: $cmd n'est pas installé"
+        echo "❌ Error: $cmd is not installed"
         exit 1
     fi
 done
 
-# Logo ASCII
+# ASCII Logo
 cat << 'EOF'
  ┌─────────────────────────────────────────┐
  │  ▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄ │
@@ -26,18 +26,18 @@ cat << 'EOF'
  └─────────────────────────────────────────┘
 EOF
 echo ""
-echo "🔍 Recherche: \"$QUERY\" ($MAX_RESULTS résultats)..."
+echo "🔍 Search: \"$QUERY\" ($MAX_RESULTS results)..."
 echo ""
 
-# Extraire les résultats YouTube en JSON (mode rapide)
+# Extract YouTube results as JSON (fast mode)
 RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
-    echo "❌ Aucun résultat trouvé"
+    echo "❌ No results found"
     exit 1
 fi
 
-# Formater pour fzf: "Titre | Durée | Vues | Auteur | ID"
+# Format for fzf: "Title | Duration | Views | Author | ID"
 FORMATTED=$(echo "$RESULTS" | jq -r '
     .title[0:60] + "|" + 
     (if .duration then (.duration | tostring) else "0" end) + "|" + 
@@ -45,7 +45,7 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
     (.uploader // "Unknown")[0:25] + "|" + 
     .id
 ' | while IFS='|' read -r title duration views uploader id; do
-    # Formater la durée
+    # Format duration
     duration=$(echo "$duration" | tr -d ' ')
     if [ "$duration" = "0" ] || [ -z "$duration" ]; then
         dur_formatted="N/A"
@@ -59,9 +59,9 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
         fi
     fi
     
-    # Formater les vues
+    # Format views
     views_num=$(echo "$views" | tr -d ' ')
-    # Vérifier que views_num est un nombre valide avant comparaison
+    # Check if views_num is a valid number before comparison
     if [[ "$views_num" =~ ^[0-9]+$ ]]; then
         if [ "$views_num" -gt 1000000 ] 2>/dev/null; then
             views_formatted="$(awk "BEGIN {printf \"%.1f\", $views_num/1000000}")M"
@@ -71,15 +71,15 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
             views_formatted="$views_num"
         fi
     else
-        # Si ce n'est pas un nombre, afficher tel quel ou "N/A"
+        # If not a number, display as is or "N/A"
         views_formatted="${views_num:-N/A}"
     fi
     
-    # Nettoyer l'ID et créer le lien complet
+    # Clean ID and create full link
     id_clean=$(echo "$id" | tr -d ' ')
     video_link="https://youtu.be/$id_clean"
     
-    # Format: Titre | Durée | Vues | Auteur | Lien
+    # Format: Title | Duration | Views | Author | Link
     printf "%-60s | %7s | %6s | %-25s | %s\n" \
         "$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
         "$dur_formatted" \
@@ -88,13 +88,13 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
         "$video_link"
 done)
 
-# Header pour fzf
-HEADER="Titre                                                        | Durée   | Vues   | Auteur                    | Lien (Cmd+Click)"
+# Header for fzf
+HEADER="Title                                                        | Duration | Views  | Author                    | Link (Cmd+Click)"
 
-# Sélection interactive avec fzf (multi-sélection avec Tab)
+# Interactive selection with fzf (multi-selection with Tab)
 SELECTED=$(echo "$FORMATTED" | fzf \
     --multi \
-    --prompt="🎵 Sélection ▶ " \
+    --prompt="🎵 Select ▶ " \
     --height=100% \
     --layout=reverse \
     --info=inline \
@@ -102,22 +102,22 @@ SELECTED=$(echo "$FORMATTED" | fzf \
     --header="$HEADER" \
     --header-lines=0 \
     --preview-window=up:3:wrap \
-    --preview='echo "📺 Sélectionné: {1}"' \
+    --preview='echo "📺 Selected: {1}"' \
     --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
     --color='header:italic:underline')
 
 if [ -z "$SELECTED" ]; then
-    echo "❌ Aucune sélection"
+    echo "❌ No selection"
     exit 0
 fi
 
-# Compter le nombre de sélections
+# Count selections
 NUM_SELECTED=$(echo "$SELECTED" | wc -l | tr -d ' ')
 
-# Extraire les URLs
+# Extract URLs
 VIDEO_URLS=()
 while IFS= read -r line; do
-    # Extraire l'ID depuis le lien (format: 🔗 VIDEO_ID)
+    # Extract ID from link (format: 🔗 VIDEO_ID)
     VIDEO_ID=$(echo "$line" | awk -F'|' '{print $NF}' | grep -oE '[a-zA-Z0-9_-]{11}' | head -1)
     if [ -n "$VIDEO_ID" ]; then
         VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
@@ -127,43 +127,43 @@ done <<< "$SELECTED"
 echo ""
 if [ "$NUM_SELECTED" -eq 1 ]; then
     VIDEO_TITLE=$(echo "$SELECTED" | awk -F' \\| ' '{print $1}')
-    echo "▶️  Lecture: $VIDEO_TITLE"
+    echo "▶️  Playing: $VIDEO_TITLE"
 else
-    echo "▶️  Lecture de $NUM_SELECTED vidéos (playlist)"
-    echo "   Utilisez < et > dans mpv pour naviguer"
+    echo "▶️  Playing $NUM_SELECTED videos (playlist)"
+    echo "   Use < and > in mpv to navigate"
 fi
 echo ""
 
-# Demander audio ou vidéo
-echo "Mode de lecture:"
-echo "  [1] Audio seul (défaut)"
-echo "  [2] Vidéo"
-echo -n "Choix (1/2): "
+# Ask for audio or video
+echo "Playback mode:"
+echo "  [1] Audio only (default)"
+echo "  [2] Video"
+echo -n "Choice (1/2): "
 read -t 5 MODE || MODE="1"
 echo ""
 
-# Afficher les raccourcis clavier
-echo "⌨️  Raccourcis mpv:"
-echo "   <  >     : Vidéo précédente/suivante"
-echo "   ←  →     : Reculer/Avancer 5s"
+# Display keyboard shortcuts
+echo "⌨️  mpv shortcuts:"
+echo "   <  >     : Previous/Next video"
+echo "   ←  →     : Seek -/+ 5s"
 echo "   ↑  ↓     : Volume +/-"
 echo "   Space    : Pause/Play"
-echo "   q        : Quitter"
+echo "   q        : Quit"
 echo ""
 
 case $MODE in
     2)
-        echo "📹 Lecture vidéo..."
+        echo "📹 Playing video..."
         echo ""
-        # Options mpv avec compteur playlist
+        # mpv options with playlist counter
         mpv --term-status-msg='Playlist: [${playlist-pos-1}/${playlist-count}] ⏱ ${time-pos}/${duration} | ${media-title}' \
-            --term-playing-msg='▶️  Lecture [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            --term-playing-msg='▶️  Playing [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
             "${VIDEO_URLS[@]}"
         ;;
     *)
-        echo "🎧 Lecture audio..."
+        echo "🎧 Playing audio..."
         echo ""
-        # Options mpv audio avec compteur playlist
+        # mpv audio options with playlist counter
         mpv --no-video \
             --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
             --term-playing-msg='▶️  Audio [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
