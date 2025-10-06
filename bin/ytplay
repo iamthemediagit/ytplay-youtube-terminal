@@ -61,12 +61,18 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
     
     # Formater les vues
     views_num=$(echo "$views" | tr -d ' ')
-    if [ "$views_num" -gt 1000000 ] 2>/dev/null; then
-        views_formatted="$(awk "BEGIN {printf \"%.1f\", $views_num/1000000}")M"
-    elif [ "$views_num" -gt 1000 ] 2>/dev/null; then
-        views_formatted="$((views_num / 1000))K"
+    # Vérifier que views_num est un nombre valide avant comparaison
+    if [[ "$views_num" =~ ^[0-9]+$ ]]; then
+        if [ "$views_num" -gt 1000000 ] 2>/dev/null; then
+            views_formatted="$(awk "BEGIN {printf \"%.1f\", $views_num/1000000}")M"
+        elif [ "$views_num" -gt 1000 ] 2>/dev/null; then
+            views_formatted="$((views_num / 1000))K"
+        else
+            views_formatted="$views_num"
+        fi
     else
-        views_formatted="$views_num"
+        # Si ce n'est pas un nombre, afficher tel quel ou "N/A"
+        views_formatted="${views_num:-N/A}"
     fi
     
     # Nettoyer l'ID et créer le lien complet
