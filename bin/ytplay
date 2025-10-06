@@ -1,0 +1,102 @@
+#!/bin/bash
+# ytplay - Recherche YouTube interactive avec sélection fzf + lecture mpv
+# Usage: ytplay "search query"
+
+set -e
+
+QUERY="${1:-documentaire inédit}"
+MAX_RESULTS="${2:-20}"
+
+# Vérifier les dépendances
+for cmd in yt-dlp fzf jq mpv; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "❌ Erreur: $cmd n'est pas installé"
+        exit 1
+    fi
+done
+
+echo "🔍 Recherche: $QUERY (${MAX_RESULTS} résultats)..."
+echo ""
+
+# Extraire les résultats YouTube en JSON
+RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
+
+if [ -z "$RESULTS" ]; then
+    echo "❌ Aucun résultat trouvé"
+    exit 1
+fi
+
+# Formater pour fzf: "Titre | Durée | Auteur | Date | ID"
+FORMATTED=$(echo "$RESULTS" | jq -r '
+    .title + " | " + 
+    (if .duration then (.duration | tostring + "s") else "N/A" end) + " | " + 
+    .uploader + " | " + 
+    (if .upload_date then (.upload_date | tostring) else "N/A" end) + " | " + 
+    .id
+')
+
+# Sélection interactive avec fzf (multi-sélection avec Tab)
+SELECTED=$(echo "$FORMATTED" | fzf \
+    --multi \
+    --prompt="Sélectionner vidéo(s) ▶ " \
+    --height=100% \
+    --layout=reverse \
+    --info=inline \
+    --border \
+    --preview-window=up:3:wrap \
+    --preview='echo "📺 {1..4}"' \
+    --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+    --header='↑↓: naviguer | Tab: sélectionner plusieurs | Enter: confirmer | Esc: quitter')
+
+if [ -z "$SELECTED" ]; then
+    echo "❌ Aucune sélection"
+    exit 0
+fi
+
+# Compter le nombre de sélections
+NUM_SELECTED=$(echo "$SELECTED" | wc -l | tr -d ' ')
+
+# Extraire les URLs
+VIDEO_URLS=()
+while IFS= read -r line; do
+    VIDEO_ID=$(echo "$line" | awk -F' \\| ' '{print $NF}')
+    VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
+done <<< "$SELECTED"
+
+echo ""
+if [ "$NUM_SELECTED" -eq 1 ]; then
+    VIDEO_TITLE=$(echo "$SELECTED" | awk -F' \\| ' '{print $1}')
+    echo "▶️  Lecture: $VIDEO_TITLE"
+else
+    echo "▶️  Lecture de $NUM_SELECTED vidéos (playlist)"
+    echo "   Utilisez < et > dans mpv pour naviguer"
+fi
+echo ""
+
+# Demander audio ou vidéo
+echo "Mode de lecture:"
+echo "  [1] Audio seul (défaut)"
+echo "  [2] Vidéo"
+echo -n "Choix (1/2): "
+read -t 5 MODE || MODE="1"
+echo ""
+
+# Afficher les raccourcis clavier
+echo "⌨️  Raccourcis mpv:"
+echo "   <  >     : Vidéo précédente/suivante"
+echo "   ←  →     : Reculer/Avancer 5s"
+echo "   ↑  ↓     : Volume +/-"
+echo "   Space    : Pause/Play"
+echo "   q        : Quitter"
+echo ""
+
+case $MODE in
+    2)
+        echo "📹 Lecture vidéo..."
+        mpv "${VIDEO_URLS[@]}"
+        ;;
+    *)
+        echo "🎧 Lecture audio..."
+        mpv --no-video "${VIDEO_URLS[@]}"
+        ;;
+esac
