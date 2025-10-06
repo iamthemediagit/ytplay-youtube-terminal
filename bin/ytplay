@@ -30,7 +30,8 @@ echo "🔍 Recherche: \"$QUERY\" ($MAX_RESULTS résultats)..."
 echo ""
 
 # Extraire les résultats YouTube en JSON
-RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
+# Note: Sans --flat-playlist pour obtenir upload_date et view_count complets
+RESULTS=$(yt-dlp --dump-json --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
     echo "❌ Aucun résultat trouvé"
@@ -95,18 +96,24 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
         date_formatted="N/A"
     fi
     
+    # Créer lien cliquable avec OSC 8 (supporté par Warp et terminaux modernes)
+    id_clean=$(echo "$id" | tr -d ' ')
+    video_url="https://youtu.be/${id_clean}"
+    # Séquence OSC 8 avec printf: \033]8;;URL\033\\TEXT\033]8;;\033\\
+    clickable_id="$(printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$video_url" "$id_clean")"
+    
     # Format: Titre | Durée | Vues | Date | Auteur | ID
-    printf "%-60s | %7s | %6s | %7s | %-20s |%s\n" \
+    printf "%-60s | %7s | %6s | %7s | %-20s | %s\n" \
         "$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
         "$dur_formatted" \
         "$views_formatted" \
         "$date_formatted" \
         "$(echo "$uploader" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
-        "$id"
+        "$clickable_id"
 done)
 
 # Header pour fzf
-HEADER="Titre                                                        | Durée   | Vues   | Date    | Auteur               "
+HEADER="Titre                                                        | Durée   | Vues   | Date    | Auteur               | ID"
 
 # Sélection interactive avec fzf (multi-sélection avec Tab)
 SELECTED=$(echo "$FORMATTED" | fzf \
