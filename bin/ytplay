@@ -1,6 +1,6 @@
 #!/bin/bash
-# ytplay - Interactive YouTube search with fzf selection + mpv playback
-# Version: 2.1
+# ytplay - Interactive multi-platform media search with fzf selection + mpv playback
+# Version: 2.2
 # Usage: ytplay "search query" [max_results]
 
 set -e
@@ -22,15 +22,61 @@ cat << 'EOF'
  │  ▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄ │
  │   █  █     █    █▄▄█  █     █▄▄█   █  █  │
  │    ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀   │
- │  YouTube Terminal Player v2.1           │
+ │  Multi-Platform Player v2.2             │
  └─────────────────────────────────────────┘
 EOF
 echo ""
-echo "🔍 Search: \"$QUERY\" ($MAX_RESULTS results)..."
+
+# Platform selection
+echo "🌐 Select platform:"
+echo "  [1] YouTube (default)"
+echo "  [2] SoundCloud"
+echo "  [3] Vimeo"
+echo "  [4] Dailymotion"
+echo -n "Choice (1-4): "
+read -t 10 PLATFORM_CHOICE || PLATFORM_CHOICE="1"
 echo ""
 
-# Extract YouTube results as JSON (fast mode)
-RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
+# Set search prefix based on platform
+case $PLATFORM_CHOICE in
+    2)
+        SEARCH_PREFIX="scsearch"
+        PLATFORM_NAME="SoundCloud"
+        ;;
+    3)
+        SEARCH_PREFIX="vimeo"
+        PLATFORM_NAME="Vimeo"
+        ;;
+    4)
+        SEARCH_PREFIX="dmsearch"
+        PLATFORM_NAME="Dailymotion"
+        ;;
+    *)
+        SEARCH_PREFIX="ytsearch"
+        PLATFORM_NAME="YouTube"
+        ;;
+esac
+
+# Export for use in subshells
+export PLATFORM_CHOICE
+
+# Function to create platform-specific link
+get_platform_link() {
+    local id="$1"
+    case $PLATFORM_CHOICE in
+        2) echo "https://soundcloud.com/$id" ;;
+        3) echo "https://vimeo.com/$id" ;;
+        4) echo "https://dailymotion.com/video/$id" ;;
+        *) echo "https://youtu.be/$id" ;;
+    esac
+}
+export -f get_platform_link
+
+echo "🔍 Searching $PLATFORM_NAME: \"$QUERY\" ($MAX_RESULTS results)..."
+echo ""
+
+# Extract results as JSON (fast mode)
+RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "${SEARCH_PREFIX}${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
     echo "❌ No results found"
@@ -75,9 +121,9 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
         views_formatted="${views_num:-N/A}"
     fi
     
-    # Clean ID and create full link
+    # Clean ID and create full link based on platform
     id_clean=$(echo "$id" | tr -d ' ')
-    video_link="https://youtu.be/$id_clean"
+    video_link=$(get_platform_link "$id_clean")
     
     # Format: Title | Duration | Views | Author | Link
     printf "%-60s | %7s | %6s | %-25s | %s\n" \
@@ -117,10 +163,10 @@ NUM_SELECTED=$(echo "$SELECTED" | wc -l | tr -d ' ')
 # Extract URLs
 VIDEO_URLS=()
 while IFS= read -r line; do
-    # Extract ID from link (format: 🔗 VIDEO_ID)
-    VIDEO_ID=$(echo "$line" | awk -F'|' '{print $NF}' | grep -oE '[a-zA-Z0-9_-]{11}' | head -1)
-    if [ -n "$VIDEO_ID" ]; then
-        VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
+    # Extract full URL from the last column
+    MEDIA_URL=$(echo "$line" | awk -F'|' '{print $NF}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    if [ -n "$MEDIA_URL" ]; then
+        VIDEO_URLS+=("$MEDIA_URL")
     fi
 done <<< "$SELECTED"
 
