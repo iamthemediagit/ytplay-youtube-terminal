@@ -29,24 +29,22 @@ echo ""
 echo "🔍 Recherche: \"$QUERY\" ($MAX_RESULTS résultats)..."
 echo ""
 
-# Extraire les résultats YouTube en JSON
-# Note: Sans --flat-playlist pour obtenir upload_date et view_count complets
-RESULTS=$(yt-dlp --dump-json --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
+# Extraire les résultats YouTube en JSON (mode rapide)
+RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
     echo "❌ Aucun résultat trouvé"
     exit 1
 fi
 
-# Formater pour fzf: "Titre | Durée | Vues | Date | Auteur | ID"
+# Formater pour fzf: "Titre | Durée | Vues | Auteur | ID"
 FORMATTED=$(echo "$RESULTS" | jq -r '
     .title[0:60] + "|" + 
     (if .duration then (.duration | tostring) else "0" end) + "|" + 
     (if .view_count then (.view_count | tostring) else "0" end) + "|" + 
-    (if .upload_date then (.upload_date | tostring) else "N/A" end) + "|" + 
-    (.uploader // "Unknown")[0:20] + "|" + 
+    (.uploader // "Unknown")[0:25] + "|" + 
     .id
-' | while IFS='|' read -r title duration views date uploader id; do
+' | while IFS='|' read -r title duration views uploader id; do
     # Formater la durée
     duration=$(echo "$duration" | tr -d ' ')
     if [ "$duration" = "0" ] || [ -z "$duration" ]; then
@@ -71,49 +69,21 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
         views_formatted="$views_num"
     fi
     
-    # Formater la date (YYYYMMDD -> MMM'YY)
-    date_clean=$(echo "$date" | tr -d ' ')
-    if [ "$date_clean" != "N/A" ] && [ ${#date_clean} -eq 8 ]; then
-        year=${date_clean:2:2}
-        month=${date_clean:4:2}
-        
-        month_name="???"
-        if [ "$month" = "01" ]; then month_name="Jan"; fi
-        if [ "$month" = "02" ]; then month_name="Feb"; fi
-        if [ "$month" = "03" ]; then month_name="Mar"; fi
-        if [ "$month" = "04" ]; then month_name="Apr"; fi
-        if [ "$month" = "05" ]; then month_name="May"; fi
-        if [ "$month" = "06" ]; then month_name="Jun"; fi
-        if [ "$month" = "07" ]; then month_name="Jul"; fi
-        if [ "$month" = "08" ]; then month_name="Aug"; fi
-        if [ "$month" = "09" ]; then month_name="Sep"; fi
-        if [ "$month" = "10" ]; then month_name="Oct"; fi
-        if [ "$month" = "11" ]; then month_name="Nov"; fi
-        if [ "$month" = "12" ]; then month_name="Dec"; fi
-        
-        date_formatted="${month_name}'${year}"
-    else
-        date_formatted="N/A"
-    fi
-    
-    # Créer lien cliquable avec OSC 8 (supporté par Warp et terminaux modernes)
+    # Nettoyer l'ID et créer le lien complet
     id_clean=$(echo "$id" | tr -d ' ')
-    video_url="https://youtu.be/${id_clean}"
-    # Séquence OSC 8 avec printf: \033]8;;URL\033\\TEXT\033]8;;\033\\
-    clickable_id="$(printf '\033]8;;%s\033\\%s\033]8;;\033\\' "$video_url" "$id_clean")"
+    video_link="https://youtu.be/$id_clean"
     
-    # Format: Titre | Durée | Vues | Date | Auteur | ID
-    printf "%-60s | %7s | %6s | %7s | %-20s | %s\n" \
+    # Format: Titre | Durée | Vues | Auteur | Lien
+    printf "%-60s | %7s | %6s | %-25s | %s\n" \
         "$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
         "$dur_formatted" \
         "$views_formatted" \
-        "$date_formatted" \
         "$(echo "$uploader" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
-        "$clickable_id"
+        "$video_link"
 done)
 
 # Header pour fzf
-HEADER="Titre                                                        | Durée   | Vues   | Date    | Auteur               | ID"
+HEADER="Titre                                                        | Durée   | Vues   | Auteur                    | Lien (Cmd+Click)"
 
 # Sélection interactive avec fzf (multi-sélection avec Tab)
 SELECTED=$(echo "$FORMATTED" | fzf \
@@ -141,8 +111,11 @@ NUM_SELECTED=$(echo "$SELECTED" | wc -l | tr -d ' ')
 # Extraire les URLs
 VIDEO_URLS=()
 while IFS= read -r line; do
-    VIDEO_ID=$(echo "$line" | awk -F'|' '{print $NF}' | tr -d ' ')
-    VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
+    # Extraire l'ID depuis le lien (format: 🔗 VIDEO_ID)
+    VIDEO_ID=$(echo "$line" | awk -F'|' '{print $NF}' | grep -oE '[a-zA-Z0-9_-]{11}' | head -1)
+    if [ -n "$VIDEO_ID" ]; then
+        VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
+    fi
 done <<< "$SELECTED"
 
 echo ""
