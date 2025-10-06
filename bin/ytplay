@@ -1,6 +1,7 @@
 #!/bin/bash
 # ytplay - Recherche YouTube interactive avec sélection fzf + lecture mpv
-# Usage: ytplay "search query"
+# Version: 2.1
+# Usage: ytplay "search query" [max_results]
 
 set -e
 
@@ -15,7 +16,17 @@ for cmd in yt-dlp fzf jq mpv; do
     fi
 done
 
-echo "🔍 Recherche: $QUERY (${MAX_RESULTS} résultats)..."
+# Logo ASCII
+cat << 'EOF'
+ ┌─────────────────────────────────────────┐
+ │  ▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄ │
+ │   █  █     █    █▄▄█  █     █▄▄█   █  █  │
+ │    ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀   │
+ │  YouTube Terminal Player v2.1           │
+ └─────────────────────────────────────────┘
+EOF
+echo ""
+echo "🔍 Recherche: \"$QUERY\" ($MAX_RESULTS résultats)..."
 echo ""
 
 # Extraire les résultats YouTube en JSON
@@ -26,27 +37,91 @@ if [ -z "$RESULTS" ]; then
     exit 1
 fi
 
-# Formater pour fzf: "Titre | Durée | Auteur | Date | ID"
+# Formater pour fzf: "Titre | Durée | Vues | Date | Auteur | ID"
 FORMATTED=$(echo "$RESULTS" | jq -r '
-    .title + " | " + 
-    (if .duration then (.duration | tostring + "s") else "N/A" end) + " | " + 
-    .uploader + " | " + 
-    (if .upload_date then (.upload_date | tostring) else "N/A" end) + " | " + 
+    .title[0:60] + "|" + 
+    (if .duration then (.duration | tostring) else "0" end) + "|" + 
+    (if .view_count then (.view_count | tostring) else "0" end) + "|" + 
+    (if .upload_date then (.upload_date | tostring) else "N/A" end) + "|" + 
+    (.uploader // "Unknown")[0:20] + "|" + 
     .id
-')
+' | while IFS='|' read -r title duration views date uploader id; do
+    # Formater la durée
+    duration=$(echo "$duration" | tr -d ' ')
+    if [ "$duration" = "0" ] || [ -z "$duration" ]; then
+        dur_formatted="N/A"
+    else
+        hours=$((duration / 3600))
+        minutes=$(((duration % 3600) / 60))
+        if [ $hours -gt 0 ]; then
+            dur_formatted="${hours}h$(printf '%02d' $minutes)m"
+        else
+            dur_formatted="${minutes}min"
+        fi
+    fi
+    
+    # Formater les vues
+    views_num=$(echo "$views" | tr -d ' ')
+    if [ "$views_num" -gt 1000000 ] 2>/dev/null; then
+        views_formatted="$(awk "BEGIN {printf \"%.1f\", $views_num/1000000}")M"
+    elif [ "$views_num" -gt 1000 ] 2>/dev/null; then
+        views_formatted="$((views_num / 1000))K"
+    else
+        views_formatted="$views_num"
+    fi
+    
+    # Formater la date (YYYYMMDD -> MMM'YY)
+    date_clean=$(echo "$date" | tr -d ' ')
+    if [ "$date_clean" != "N/A" ] && [ ${#date_clean} -eq 8 ]; then
+        year=${date_clean:2:2}
+        month=${date_clean:4:2}
+        
+        month_name="???"
+        if [ "$month" = "01" ]; then month_name="Jan"; fi
+        if [ "$month" = "02" ]; then month_name="Feb"; fi
+        if [ "$month" = "03" ]; then month_name="Mar"; fi
+        if [ "$month" = "04" ]; then month_name="Apr"; fi
+        if [ "$month" = "05" ]; then month_name="May"; fi
+        if [ "$month" = "06" ]; then month_name="Jun"; fi
+        if [ "$month" = "07" ]; then month_name="Jul"; fi
+        if [ "$month" = "08" ]; then month_name="Aug"; fi
+        if [ "$month" = "09" ]; then month_name="Sep"; fi
+        if [ "$month" = "10" ]; then month_name="Oct"; fi
+        if [ "$month" = "11" ]; then month_name="Nov"; fi
+        if [ "$month" = "12" ]; then month_name="Dec"; fi
+        
+        date_formatted="${month_name}'${year}"
+    else
+        date_formatted="N/A"
+    fi
+    
+    # Format: Titre | Durée | Vues | Date | Auteur | ID
+    printf "%-60s | %7s | %6s | %7s | %-20s |%s\n" \
+        "$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
+        "$dur_formatted" \
+        "$views_formatted" \
+        "$date_formatted" \
+        "$(echo "$uploader" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" \
+        "$id"
+done)
+
+# Header pour fzf
+HEADER="Titre                                                        | Durée   | Vues   | Date    | Auteur               "
 
 # Sélection interactive avec fzf (multi-sélection avec Tab)
 SELECTED=$(echo "$FORMATTED" | fzf \
     --multi \
-    --prompt="Sélectionner vidéo(s) ▶ " \
+    --prompt="🎵 Sélection ▶ " \
     --height=100% \
     --layout=reverse \
     --info=inline \
-    --border \
+    --border=rounded \
+    --header="$HEADER" \
+    --header-lines=0 \
     --preview-window=up:3:wrap \
-    --preview='echo "📺 {1..4}"' \
+    --preview='echo "📺 Sélectionné: {1}"' \
     --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
-    --header='↑↓: naviguer | Tab: sélectionner plusieurs | Enter: confirmer | Esc: quitter')
+    --color='header:italic:underline')
 
 if [ -z "$SELECTED" ]; then
     echo "❌ Aucune sélection"
@@ -59,7 +134,7 @@ NUM_SELECTED=$(echo "$SELECTED" | wc -l | tr -d ' ')
 # Extraire les URLs
 VIDEO_URLS=()
 while IFS= read -r line; do
-    VIDEO_ID=$(echo "$line" | awk -F' \\| ' '{print $NF}')
+    VIDEO_ID=$(echo "$line" | awk -F'|' '{print $NF}' | tr -d ' ')
     VIDEO_URLS+=("https://www.youtube.com/watch?v=${VIDEO_ID}")
 done <<< "$SELECTED"
 
@@ -93,10 +168,19 @@ echo ""
 case $MODE in
     2)
         echo "📹 Lecture vidéo..."
-        mpv "${VIDEO_URLS[@]}"
+        echo ""
+        # Options mpv avec compteur playlist
+        mpv --term-status-msg='Playlist: [${playlist-pos-1}/${playlist-count}] ⏱ ${time-pos}/${duration} | ${media-title}' \
+            --term-playing-msg='▶️  Lecture [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            "${VIDEO_URLS[@]}"
         ;;
     *)
         echo "🎧 Lecture audio..."
-        mpv --no-video "${VIDEO_URLS[@]}"
+        echo ""
+        # Options mpv audio avec compteur playlist
+        mpv --no-video \
+            --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
+            --term-playing-msg='▶️  Audio [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            "${VIDEO_URLS[@]}"
         ;;
 esac

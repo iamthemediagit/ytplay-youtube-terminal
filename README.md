@@ -5,11 +5,21 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://www.apple.com/macos/)
 [![Shell](https://img.shields.io/badge/shell-bash-green)](https://www.gnu.org/software/bash/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.1-brightgreen)](CHANGELOG.md)
 
 ![ytplay demo](https://img.shields.io/badge/demo-coming_soon-orange)
 
 ## ✨ Features
 
+### 🆕 NEW in v2.1
+- 🎨 **ASCII Logo** - Beautiful startup screen
+- 📊 **Formatted columns** - Clean table display with Title | Duration | Views | Date | Author
+- ⏱️ **Human-readable duration** - "15min", "1h23m" instead of raw seconds
+- 👁️ **View count** - See popularity at a glance ("1.5M", "234K")
+- 📅 **Formatted dates** - "Jan'24", "Feb'23" for easy reading
+- 📊 **Playlist counter** - Real-time position display in mpv `[2/5]`
+
+### Core Features
 - 🔍 **Interactive search** - Search YouTube with fuzzy finder (fzf)
 - 🎵 **Multi-selection** - Select multiple videos to create playlists on the fly (Tab key)
 - 🎮 **Playlist navigation** - Navigate between videos during playback (`<` `>` keys)
