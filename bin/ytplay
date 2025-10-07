@@ -1,6 +1,6 @@
 #!/bin/bash
 # ytplay - Interactive YouTube search with fzf selection + mpv playback
-# Version: 2.1
+# Version: 2.2 - Terminal Guru Edition
 # Usage: ytplay "search query" [max_results]
 
 set -e
@@ -8,32 +8,42 @@ set -e
 QUERY="${1:-documentary}"
 MAX_RESULTS="${2:-20}"
 
+# ═════════════════════════════════════════════════════════════════════
+# Terminal Guru Design - Color Definitions
+# ═════════════════════════════════════════════════════════════════════
+
+SUCCESS='\033[1;32m'   # Bright Green
+ERROR='\033[1;31m'     # Bright Red
+INFO='\033[1;36m'      # Bright Cyan
+NOTICE='\033[1;35m'    # Bright Magenta
+DIM='\033[0;90m'       # Gray
+BOLD='\033[1;37m'      # White
+NC='\033[0m'           # Reset
+
 # Check dependencies
 for cmd in yt-dlp fzf jq mpv; do
     if ! command -v $cmd &> /dev/null; then
-        echo "❌ Error: $cmd is not installed"
+        echo -e "${ERROR}[✗]${NC} Error: $cmd is not installed"
         exit 1
     fi
 done
 
-# ASCII Logo
-cat << 'EOF'
- ┌─────────────────────────────────────────┐
- │  ▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄ │
- │   █  █     █    █▄▄█  █     █▄▄█   █  █  │
- │    ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀   │
- │  YouTube Terminal Player v2.1           │
- └─────────────────────────────────────────┘
-EOF
+# ASCII Logo with colors
+echo -e "${INFO}┌─────────────────────────────────────────┐${NC}"
+echo -e "${INFO}│${NC}  ${BOLD}▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄${NC} ${INFO}│${NC}"
+echo -e "${INFO}│${NC}  ${BOLD} █  █     █    █▄▄█  █     █▄▄█   █  █${NC}  ${INFO}│${NC}"
+echo -e "${INFO}│${NC}  ${BOLD}  ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀${NC}   ${INFO}│${NC}"
+echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.2${NC}           ${INFO}│${NC}"
+echo -e "${INFO}└─────────────────────────────────────────┘${NC}"
 echo ""
-echo "🔍 Search: \"$QUERY\" ($MAX_RESULTS results)..."
+echo -e "${INFO}[*]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results)${NC}"
 echo ""
 
-# Extract YouTube results as JSON (fast mode)
+# Extract YouTube results as JSON (fast mode) - suppress shell-init errors
 RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
-    echo "❌ No results found"
+    echo -e "${ERROR}[✗]${NC} No results found"
     exit 1
 fi
 
@@ -47,7 +57,8 @@ FORMATTED=$(echo "$RESULTS" | jq -r '
 ' | while IFS='|' read -r title duration views uploader id; do
     # Format duration
     duration=$(echo "$duration" | tr -d ' ')
-    if [ "$duration" = "0" ] || [ -z "$duration" ]; then
+    # Validate duration is numeric
+    if [ "$duration" = "0" ] || [ -z "$duration" ] || ! [[ "$duration" =~ ^[0-9]+$ ]]; then
         dur_formatted="N/A"
     else
         hours=$((duration / 3600))
@@ -107,7 +118,7 @@ SELECTED=$(echo "$FORMATTED" | fzf \
     --color='header:italic:underline')
 
 if [ -z "$SELECTED" ]; then
-    echo "❌ No selection"
+    echo -e "${DIM}[#]${NC} No selection made"
     exit 0
 fi
 
@@ -127,46 +138,52 @@ done <<< "$SELECTED"
 echo ""
 if [ "$NUM_SELECTED" -eq 1 ]; then
     VIDEO_TITLE=$(echo "$SELECTED" | awk -F' \\| ' '{print $1}')
-    echo "▶️  Playing: $VIDEO_TITLE"
+    echo -e "${SUCCESS}[✓]${NC} Playing: ${BOLD}$VIDEO_TITLE${NC}"
 else
-    echo "▶️  Playing $NUM_SELECTED videos (playlist)"
-    echo "   Use < and > in mpv to navigate"
+    echo -e "${SUCCESS}[✓]${NC} Playing ${BOLD}$NUM_SELECTED${NC} videos ${DIM}(playlist)${NC}"
+    echo -e "${DIM}   Use < and > in mpv to navigate${NC}"
 fi
 echo ""
 
 # Ask for audio or video
-echo "Playback mode:"
-echo "  [1] Audio only (default)"
-echo "  [2] Video"
-echo -n "Choice (1/2): "
+echo -e "${INFO}[>]${NC} Playback mode:"
+echo -e "  ${BOLD}[1]${NC} Audio only ${DIM}(default)${NC}"
+echo -e "  ${BOLD}[2]${NC} Video"
+echo -ne "${NOTICE}Choice (1/2):${NC} "
 read -t 5 MODE || MODE="1"
 echo ""
 
 # Display keyboard shortcuts
-echo "⌨️  mpv shortcuts:"
-echo "   <  >     : Previous/Next video"
-echo "   ←  →     : Seek -/+ 5s"
-echo "   ↑  ↓     : Volume +/-"
-echo "   Space    : Pause/Play"
-echo "   q        : Quit"
+echo -e "${DIM}─────────────────────────────────────────${NC}"
+echo -e "${INFO}[*]${NC} mpv shortcuts:"
+echo -e "${DIM}   <  >     : Previous/Next video${NC}"
+echo -e "${DIM}   ←  →     : Seek -/+ 5s${NC}"
+echo -e "${DIM}   ↑  ↓     : Volume +/-${NC}"
+echo -e "${DIM}   Space    : Pause/Play${NC}"
+echo -e "${DIM}   q        : Quit${NC}"
+echo -e "${DIM}─────────────────────────────────────────${NC}"
 echo ""
 
 case $MODE in
     2)
-        echo "📹 Playing video..."
+        echo -e "${SUCCESS}[~]${NC} Playing video..."
         echo ""
-        # mpv options with playlist counter
-        mpv --term-status-msg='Playlist: [${playlist-pos-1}/${playlist-count}] ⏱ ${time-pos}/${duration} | ${media-title}' \
-            --term-playing-msg='▶️  Playing [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
-            "${VIDEO_URLS[@]}"
+        # mpv video - force terminal OSD display with clean output
+        mpv --term-osd=force \
+            --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
+            --term-playing-msg='▶️  Video [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            --msg-level=cplayer=error,ffmpeg=error,file=error \
+            "${VIDEO_URLS[@]}" 2>/dev/null
         ;;
     *)
-        echo "🎧 Playing audio..."
+        echo -e "${SUCCESS}[~]${NC} Playing audio..."
         echo ""
-        # mpv audio options with playlist counter
+        # mpv audio - force terminal OSD display with clean output
         mpv --no-video \
+            --term-osd=force \
             --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
             --term-playing-msg='▶️  Audio [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
-            "${VIDEO_URLS[@]}"
+            --msg-level=cplayer=error,ffmpeg=error,file=error \
+            "${VIDEO_URLS[@]}" 2>/dev/null
         ;;
 esac
