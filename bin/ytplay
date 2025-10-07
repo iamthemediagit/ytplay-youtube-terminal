@@ -170,7 +170,7 @@ case $MODE in
         # mpv video - force terminal OSD display with clean output
         mpv --term-osd=force \
             --term-osd-bar \
-            --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
+            --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
             --term-playing-msg='⏵ Video [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
             --msg-level=cplayer=error,ffmpeg=error,file=error \
             "${VIDEO_URLS[@]}"
@@ -182,7 +182,7 @@ case $MODE in
         mpv --no-video \
             --term-osd=force \
             --term-osd-bar \
-            --term-status-msg='♪ Playlist: [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration} | ${media-title}' \
+            --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
             --term-playing-msg='⏵ Audio [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
             --msg-level=cplayer=error,ffmpeg=error,file=error \
             "${VIDEO_URLS[@]}"
