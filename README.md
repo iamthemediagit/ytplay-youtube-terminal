@@ -5,15 +5,25 @@
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://www.apple.com/macos/)
 [![Shell](https://img.shields.io/badge/shell-bash-green)](https://www.gnu.org/software/bash/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1-brightgreen)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4-brightgreen)](CHANGELOG.md)
 
 ![ytplay demo](https://img.shields.io/badge/demo-coming_soon-orange)
 
 ## ✨ Features
 
-### 🆕 NEW in v2.1
+### 🆕 NEW in v2.4
+- 🎥 **Terminal Video Mode** - Watch videos directly in terminal with true-color rendering (mpv --vo=tct)
+- 🎨 **3 Playback Modes** - Audio only, Video window, or Video in terminal
+- 🔧 **Enhanced Mode Selection** - Improved input handling for mode selection
+
+### Previous Updates (v2.3)
+- ⏰ **Temporal Filters** - Search by time period (--today, --week, --month, --year)
+- 🎨 **Terminal Guru Design** - Elegant Unicode icons and cohesive color palette
+- 📊 **Clean Display** - Optimized metadata presentation
+
+### v2.1 Updates
 - 🎨 **ASCII Logo** - Beautiful startup screen
-- 📊 **Formatted columns** - Clean table display with Title | Duration | Views | Date | Author
+- 📊 **Formatted columns** - Clean table display with Title | Duration | Views | Author
 - ⏱️ **Human-readable duration** - "15min", "1h23m" instead of raw seconds
 - 👁️ **View count** - See popularity at a glance ("1.5M", "234K")
 - 📅 **Formatted dates** - "Jan'24", "Feb'23" for easy reading
@@ -50,20 +60,26 @@ ytplay "lofi hip hop"
 # More results
 ytplay "documentary" 50
 
+# Search with temporal filter
+ytplay "tech news" 20 --today
+ytplay "documentaire" 15 --week
+ytplay "music" 30 --month
+
 # Direct URL
 mpv --no-video "https://youtube.com/watch?v=VIDEO_ID"
 ```
 
 ## 🎮 Workflow
 
-1. **Launch**: `ytplay "your search"`
+1. **Launch**: `ytplay "your search" [max_results] [--today|--week|--month|--year]`
 2. **Navigate**: ↑↓ arrows or `/keyword` to filter
 3. **Select**: 
    - `Tab` to select multiple videos (playlist)
    - `Enter` to confirm
 4. **Choose mode**: 
    - `1` = Audio only (recommended)
-   - `2` = Video
+   - `2` = Video (external window)
+   - `3` = Video (terminal) - **NEW!** True-color rendering
 5. **Control in mpv**:
    - `<` `>` = Previous/Next video
    - `Space` = Pause/Play
@@ -123,7 +139,7 @@ source ~/.zshrc
 
 ### Daily listening
 ```bash
-ytplay "podcast tech"
+ytplay "podcast tech" 10 --today
 # Select one, listen, skip with > if needed
 ```
 
@@ -136,9 +152,16 @@ ytplay "pink floyd" 30
 
 ### Podcast series
 ```bash
-ytplay "lex fridman podcast" 20
+ytplay "lex fridman podcast" 20 --week
 # Tab on multiple episodes
 # Continuous playback, skip with >
+```
+
+### Terminal video experience
+```bash
+ytplay "nature documentary" 10 --month
+# Choose mode 3 for immersive terminal video
+# Maximize terminal for best quality
 ```
 
 ### Download for offline (plane mode)
