@@ -1,9 +1,44 @@
 #!/bin/bash
 # ytplay - Interactive YouTube search with fzf selection + mpv playback
-# Version: 2.3 - Terminal Guru Edition
+# Version: 2.4 - Terminal Guru Edition
 # Usage: ytplay "search query" [max_results] [--today|--week|--month|--year]
 
 set -e
+
+# Show help
+if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    cat << EOF
+┌─────────────────────────────────────────┐
+│ ytplay - YouTube Terminal Player v2.3 │
+└─────────────────────────────────────────┘
+
+Usage:
+  ytplay <query> [max_results] [filter]
+
+Arguments:
+  query         Search query (required)
+  max_results   Number of results (default: 20)
+
+Playback Modes:
+  [1] Audio only (default)
+  [2] Video (window)
+  [3] Video (terminal) - true-color rendering
+
+Temporal Filters:
+  --today       Videos from today
+  --week        Videos from last 7 days
+  --month       Videos from last 30 days
+  --year        Videos from last year
+
+Examples:
+  ytplay "thinkerview" 10
+  ytplay "documentaire" 10 --week
+  ytplay "rick astley" 5 --month
+  ytplay "demo" 5  # Then choose mode 3 for terminal video
+
+EOF
+    exit 0
+fi
 
 QUERY="${1:-documentary}"
 MAX_RESULTS="${2:-20}"
@@ -50,7 +85,7 @@ echo -e "${INFO}┌────────────────────�
 echo -e "${INFO}│${NC}  ${BOLD}▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄${NC} ${INFO}│${NC}"
 echo -e "${INFO}│${NC}  ${BOLD} █  █     █    █▄▄█  █     █▄▄█   █  █${NC}  ${INFO}│${NC}"
 echo -e "${INFO}│${NC}  ${BOLD}  ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀${NC}   ${INFO}│${NC}"
-echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.3${NC}           ${INFO}│${NC}"
+echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.4${NC}           ${INFO}│${NC}"
 echo -e "${INFO}└─────────────────────────────────────────┘${NC}"
 echo ""
 echo -e "${ERROR}[♥]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results, $FILTER_LABEL)${NC}"
@@ -164,9 +199,12 @@ echo ""
 # Ask for audio or video
 echo -e "${INFO}[⚑]${NC} Playback mode:"
 echo -e "  ${BOLD}[1]${NC} Audio only ${DIM}(default)${NC}"
-echo -e "  ${BOLD}[2]${NC} Video"
-echo -ne "${NOTICE}Choice (1/2):${NC} "
+echo -e "  ${BOLD}[2]${NC} Video ${DIM}(window)${NC}"
+echo -e "  ${BOLD}[3]${NC} Video ${DIM}(terminal)${NC}"
+echo -ne "${NOTICE}Choice (1/2/3):${NC} "
 read -t 5 MODE || MODE="1"
+# Clean MODE variable (remove spaces/newlines)
+MODE=$(echo "$MODE" | tr -d ' \n\r')
 echo ""
 
 # Display keyboard shortcuts
@@ -182,13 +220,26 @@ echo ""
 
 case $MODE in
     2)
-        echo -e "${NOTICE}[♫]${NC} Playing video..."
+        echo -e "${NOTICE}[♫]${NC} Playing video (window)..."
         echo ""
-        # mpv video - force terminal OSD display with clean output
+        # mpv video window - force terminal OSD display with clean output
         mpv --term-osd=force \
             --term-osd-bar \
             --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
             --term-playing-msg='⏵ Video: ${media-title}' \
+            --msg-level=cplayer=error,ffmpeg=error,file=error \
+            "${VIDEO_URLS[@]}"
+        ;;
+    3)
+        echo -e "${NOTICE}[♫]${NC} Playing video (terminal)..."
+        echo -e "${DIM}   Tip: Maximize terminal for best quality${NC}"
+        echo ""
+        # mpv terminal video (tct) - true-color terminal rendering
+        mpv --vo=tct \
+            --term-osd=force \
+            --term-osd-bar \
+            --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
+            --term-playing-msg='⏵ Video (terminal): ${media-title}' \
             --msg-level=cplayer=error,ffmpeg=error,file=error \
             "${VIDEO_URLS[@]}"
         ;;
