@@ -145,7 +145,7 @@ fi
 echo ""
 
 # Ask for audio or video
-echo -e "${INFO}[▶]${NC} Playback mode:"
+echo -e "${INFO}[⚑]${NC} Playback mode:"
 echo -e "  ${BOLD}[1]${NC} Audio only ${DIM}(default)${NC}"
 echo -e "  ${BOLD}[2]${NC} Video"
 echo -ne "${NOTICE}Choice (1/2):${NC} "
