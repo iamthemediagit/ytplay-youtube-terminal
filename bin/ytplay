@@ -115,7 +115,7 @@ SELECTED=$(echo "$FORMATTED" | fzf \
     --preview-window=up:3:wrap \
     --preview='echo "📺 Selected: {1}"' \
     --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
-    --color='header:italic:underline')
+    --color='fg:#ffffff,bg:#000000,hl:#ff79c6,fg+:#ffffff,bg+:#2d2d2d,hl+:#ff79c6,info:#bd93f9,prompt:#50fa7b,pointer:#ff79c6,marker:#ff79c6,spinner:#bd93f9,header:#8be9fd:italic:underline')
 
 if [ -z "$SELECTED" ]; then
     echo -e "${DIM}[#]${NC} No selection made"
