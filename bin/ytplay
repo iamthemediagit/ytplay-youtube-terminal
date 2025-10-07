@@ -1,12 +1,29 @@
 #!/bin/bash
 # ytplay - Interactive YouTube search with fzf selection + mpv playback
-# Version: 2.2 - Terminal Guru Edition
-# Usage: ytplay "search query" [max_results]
+# Version: 2.3 - Terminal Guru Edition
+# Usage: ytplay "search query" [max_results] [--today|--week|--month|--year]
 
 set -e
 
 QUERY="${1:-documentary}"
 MAX_RESULTS="${2:-20}"
+
+# Parse temporal filter option
+DATE_FILTER=""
+FILTER_LABEL="all time"
+if [[ "$3" == "--today" ]]; then
+    DATE_FILTER="--dateafter today"
+    FILTER_LABEL="today"
+elif [[ "$3" == "--week" ]]; then
+    DATE_FILTER="--dateafter today-1week"
+    FILTER_LABEL="last 7 days"
+elif [[ "$3" == "--month" ]]; then
+    DATE_FILTER="--dateafter today-1month"
+    FILTER_LABEL="last 30 days"
+elif [[ "$3" == "--year" ]]; then
+    DATE_FILTER="--dateafter today-1year"
+    FILTER_LABEL="last year"
+fi
 
 # ═════════════════════════════════════════════════════════════════════
 # Terminal Guru Design - Color Definitions
@@ -33,14 +50,14 @@ echo -e "${INFO}┌────────────────────�
 echo -e "${INFO}│${NC}  ${BOLD}▀▄    ▄  ▀▀█▀▀  █▀▀▄  █     █▀▀█  ▀▄    ▄${NC} ${INFO}│${NC}"
 echo -e "${INFO}│${NC}  ${BOLD} █  █     █    █▄▄█  █     █▄▄█   █  █${NC}  ${INFO}│${NC}"
 echo -e "${INFO}│${NC}  ${BOLD}  ▀▀      ▀    ▀     ▀▀▀   ▀  ▀    ▀▀${NC}   ${INFO}│${NC}"
-echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.2${NC}           ${INFO}│${NC}"
+echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.3${NC}           ${INFO}│${NC}"
 echo -e "${INFO}└─────────────────────────────────────────┘${NC}"
 echo ""
-echo -e "${ERROR}[♥]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results)${NC}"
+echo -e "${ERROR}[♥]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results, $FILTER_LABEL)${NC}"
 echo ""
 
 # Extract YouTube results as JSON (fast mode) - suppress shell-init errors
-RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
+RESULTS=$(yt-dlp --dump-json --flat-playlist --skip-download $DATE_FILTER "ytsearch${MAX_RESULTS}:${QUERY}" 2>/dev/null)
 
 if [ -z "$RESULTS" ]; then
     echo -e "${ERROR}[✗]${NC} No results found"
