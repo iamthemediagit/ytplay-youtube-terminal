@@ -36,7 +36,7 @@ echo -e "${INFO}│${NC}  ${BOLD}  ▀▀      ▀    ▀     ▀▀▀   ▀  �
 echo -e "${INFO}│${NC}  ${SUCCESS}YouTube Terminal Player v2.2${NC}           ${INFO}│${NC}"
 echo -e "${INFO}└─────────────────────────────────────────┘${NC}"
 echo ""
-echo -e "${INFO}[*]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results)${NC}"
+echo -e "${ERROR}[♥]${NC} Search: ${BOLD}\"$QUERY\"${NC} ${DIM}($MAX_RESULTS results)${NC}"
 echo ""
 
 # Extract YouTube results as JSON (fast mode) - suppress shell-init errors
@@ -154,7 +154,7 @@ echo ""
 
 # Display keyboard shortcuts
 echo -e "${DIM}─────────────────────────────────────────${NC}"
-echo -e "${INFO}[*]${NC} mpv shortcuts:"
+echo -e "${NOTICE}[♫]${NC} mpv shortcuts:"
 echo -e "${DIM}   <  >     : Previous/Next video${NC}"
 echo -e "${DIM}   ←  →     : Seek -/+ 5s${NC}"
 echo -e "${DIM}   ↑  ↓     : Volume +/-${NC}"
@@ -171,7 +171,7 @@ case $MODE in
         mpv --term-osd=force \
             --term-osd-bar \
             --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
-            --term-playing-msg='⏵ Video [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            --term-playing-msg='⏵ Video: ${media-title}' \
             --msg-level=cplayer=error,ffmpeg=error,file=error \
             "${VIDEO_URLS[@]}"
         ;;
@@ -183,7 +183,7 @@ case $MODE in
             --term-osd=force \
             --term-osd-bar \
             --term-status-msg='♪ [${playlist-pos-1}/${playlist-count}] | ⏱ ${time-pos}/${duration}' \
-            --term-playing-msg='⏵ Audio [${playlist-pos-1}/${playlist-count}]: ${media-title}' \
+            --term-playing-msg='⏵ Audio: ${media-title}' \
             --msg-level=cplayer=error,ffmpeg=error,file=error \
             "${VIDEO_URLS[@]}"
         ;;
